@@ -64,7 +64,7 @@ const MeetingPage = () => {
     }, []);
 
     useEffect(() => {
-        if (socket.connected) {
+        if (!socket.connected) {
             socket.connect();
         }
     }, [socket]);
