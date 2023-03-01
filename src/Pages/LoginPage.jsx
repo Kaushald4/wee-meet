@@ -20,6 +20,7 @@ function LoginPage() {
             .unwrap()
             .then((res) => {
                 if (res?.data) {
+                    localStorage.setItem("token", res.data.jwtToken);
                     navigate("/", { replace: true });
                 }
             });

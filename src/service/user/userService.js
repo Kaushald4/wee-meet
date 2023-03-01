@@ -7,7 +7,6 @@ const signUpApi = weMeetApi.injectEndpoints({
                 url: "/signup",
                 method: "POST",
                 body: data,
-                credentials: "include",
             }),
         }),
 
@@ -16,7 +15,6 @@ const signUpApi = weMeetApi.injectEndpoints({
                 url: "/login",
                 method: "POST",
                 body: data,
-                credentials: "include",
             }),
         }),
 
@@ -24,7 +22,9 @@ const signUpApi = weMeetApi.injectEndpoints({
             query: (data) => ({
                 url: "/auth/user",
                 method: "GET",
-                credentials: "include",
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
             }),
         }),
     }),

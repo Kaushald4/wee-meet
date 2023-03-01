@@ -7,7 +7,9 @@ const meetingApi = weMeetApi.injectEndpoints({
                 url: "/meeting",
                 method: "POST",
                 body: data,
-                credentials: "include",
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
             }),
         }),
 
@@ -16,7 +18,9 @@ const meetingApi = weMeetApi.injectEndpoints({
                 url: "/meeting/info",
                 method: "POST",
                 body: data,
-                credentials: "include",
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
             }),
         }),
     }),
