@@ -43,6 +43,12 @@ const JoinPage = () => {
         getUserMediaStream();
     }, []);
 
+    useEffect(() => {
+        if (socket.connected) {
+            socket.connect();
+        }
+    }, [socket]);
+
     const handleJoinNow = () => {
         socket.emit("join:meeting", {
             name: userData?.data?.name,

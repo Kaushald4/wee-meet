@@ -63,6 +63,12 @@ const MeetingPage = () => {
         setVideoConstraint(location.state?.videoConstraint);
     }, []);
 
+    useEffect(() => {
+        if (socket.connected) {
+            socket.connect();
+        }
+    }, [socket]);
+
     // socket listeners
     const handleIncomingJoinRequest = (data) => {
         const { name, socketId } = data;
