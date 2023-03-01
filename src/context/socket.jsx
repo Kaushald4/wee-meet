@@ -7,7 +7,6 @@ const SocketProvider = ({ children }) => {
     const socket = useMemo(() => {
         return io(process.env.REACT_APP_BACKEND_URL, {
             // return io("http://localhost:4000", {
-            withCredentials: true,
         });
     }, []);
 
