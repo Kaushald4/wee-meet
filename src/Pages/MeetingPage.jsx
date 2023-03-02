@@ -23,8 +23,12 @@ const MeetingPage = () => {
     });
     const [myName, setMyName] = useState("");
     const [chanel, setDataChanel] = useState(null);
-    const [remoteStreams, setRemoteStreams] = useState([]);
+    const [remoteStream, setRemoteStream] = useState(null);
     const [myScreenStream, setMyScreeStream] = useState(null);
+    const [remoteScreenStream, setRemoteScreenStream] = useState({
+        stream: null,
+        id: "",
+    });
     const [pinnedVideo, setPinndedVideo] = useState(null);
     const [mymessage, setMymessage] = useState("");
     const [showChat, setShowChat] = useState(false);
@@ -48,6 +52,7 @@ const MeetingPage = () => {
     const sendersRef = useRef([]);
     const pinnedVideoRef = useRef();
     const myScreenStreamRef = useRef(null);
+    const remoteVideoRef = useRef(null);
 
     const { data: userData } = useGetLoggedInUserQuery();
 
@@ -147,7 +152,13 @@ const MeetingPage = () => {
     //peer listeners
     const handleRecieveMessage = (ev) => {
         const messageData = JSON.parse(ev.data);
-        console.log(messageData);
+        if (messageData?.screenStream) {
+            setRemoteScreenStream({
+                ...remoteScreenStream,
+                id: messageData.id,
+            });
+            return;
+        }
         setMessages((prev) => {
             return [...prev, messageData];
         });
@@ -166,8 +177,7 @@ const MeetingPage = () => {
         peer.chanel.send(JSON.stringify(messageData));
         setMymessage("");
         var elem = document.getElementById("msg-box");
-        elem.scrollTop = elem.scrollHeight;
-        console.log(elem.scrollHeight);
+        elem.scrollTop = elem.scrollHeight + 200;
     };
 
     const handleNegotiationNeeded = async () => {
@@ -188,10 +198,13 @@ const MeetingPage = () => {
 
     const handleTrack = (event) => {
         const streams = event.streams;
-        if (remoteStreams.length >= 1) {
-            setRemoteStreams([...remoteStreams, streams[0]]);
+        if (streams[0].id === remoteScreenStream.id) {
+            setRemoteScreenStream(streams[0]);
+            setPinndedVideo(streams[0]);
+            pinnedVideoRef.current.srcObject = streams[0];
         } else {
-            setRemoteStreams([streams[0]]);
+            remoteVideoRef.current.srcObject = streams[0];
+            setRemoteStream(streams[0]);
         }
     };
 
@@ -222,7 +235,7 @@ const MeetingPage = () => {
             peer.peer.ondatachannel = null;
             peer.peer.removeEventListener("track", handleTrack);
         };
-    }, [peer, incomingUserRequest, chanel, remoteStreams]);
+    }, [peer, incomingUserRequest, chanel, remoteStream, handleRecieveMessage]);
 
     const shareMyVideoStream = () => {
         navigator.mediaDevices
@@ -242,6 +255,10 @@ const MeetingPage = () => {
             video: true,
             audio: true,
         });
+        peer.chanel.send(
+            JSON.stringify({ screenStream: true, id: streams.id })
+        );
+
         setMyScreeStream(streams);
         myScreenStreamRef.current.srcObject = streams;
         const streamTrack = streams.getTracks()[0];
@@ -316,9 +333,13 @@ const MeetingPage = () => {
         }
     }, [messages]);
 
+    useEffect(() => {
+        return () => {};
+    }, []);
+
     return (
         <div
-            className="h-[80vh] overflow-y-hidden"
+            className="h-[90vh] overflow-y-hidden"
             onClick={() => setShowChat(false)}
         >
             {myScreenStream && incomingUserRequest.name && (
@@ -506,39 +527,33 @@ const MeetingPage = () => {
                         <div className="absolute z-10 left-8 top-2 text-white">
                             {incomingUserRequest.name}
                         </div>
-                        {remoteStreams.map((stream, e) => {
-                            return (
-                                <div
-                                    className="w-[370px] h-[280px] relative group"
-                                    key={e}
-                                >
-                                    <div className="absolute top-0 left-0 right-0 bottom-0 group-hover:bg-[rgba(0,0,0,.5)] flex justify-end">
-                                        <div className="invisible group-hover:visible mr-[20px] mt-4  cursor-pointer z-20">
-                                            {pinnedVideo ? (
-                                                <BsPinAngleFill
-                                                    onClick={unPinVideo}
-                                                    className="text-4xl text-secondary"
-                                                />
-                                            ) : (
-                                                <BsPinAngle
-                                                    onClick={() =>
-                                                        setPinndedVideo(stream)
-                                                    }
-                                                    className="text-4xl text-secondary "
-                                                />
-                                            )}
-                                        </div>
-                                    </div>
-                                    <ReactPlayer
-                                        width={"100%"}
-                                        height={"100%"}
-                                        playing
-                                        playsinline
-                                        url={stream}
-                                    />
+                        <div className="w-[370px] h-[280px] relative group">
+                            <div className="absolute top-0 left-0 right-0 bottom-0 group-hover:bg-[rgba(0,0,0,.5)] flex justify-end">
+                                <div className="invisible group-hover:visible mr-[20px] mt-4  cursor-pointer z-20">
+                                    {pinnedVideo ? (
+                                        <BsPinAngleFill
+                                            onClick={unPinVideo}
+                                            className="text-4xl text-secondary"
+                                        />
+                                    ) : (
+                                        <BsPinAngle
+                                            onClick={() =>
+                                                setPinndedVideo(remoteStream)
+                                            }
+                                            className="text-4xl text-secondary "
+                                        />
+                                    )}
                                 </div>
-                            );
-                        })}
+                            </div>
+                            <video
+                                ref={remoteVideoRef}
+                                playsInline
+                                autoPlay
+                                width={"100%"}
+                                style={{ objectFit: "cover" }}
+                                height={"100%"}
+                            ></video>
+                        </div>
                     </div>
                 </div>
             </div>
