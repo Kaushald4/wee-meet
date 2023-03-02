@@ -11,7 +11,6 @@ const Chat = ({
     myMessage,
     setShowChat,
 }) => {
-    console.log(messages);
     return (
         <div className="h-[600px] w-[400px] bg-base-300 rounded-lg overflow-hidden">
             <div className="bg-base-100 flex justify-center items-center">
@@ -26,7 +25,7 @@ const Chat = ({
                     <AiFillCloseCircle className="text-3xl text-primary" />
                 </div>
             </div>
-            <div className="h-[450px] overflow-auto px-2 pt-4">
+            <div id="msg-box" className="h-[450px] overflow-auto px-2 pt-4">
                 {messages.map((message, i) => {
                     return (
                         <div

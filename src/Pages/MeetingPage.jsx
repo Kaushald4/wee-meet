@@ -160,11 +160,14 @@ const MeetingPage = () => {
             sentAt: new Date(),
             isSeen: false,
         };
-        peer.chanel.send(JSON.stringify(messageData));
         setMessages((prev) => {
             return [...prev, messageData];
         });
+        peer.chanel.send(JSON.stringify(messageData));
         setMymessage("");
+        var elem = document.getElementById("msg-box");
+        elem.scrollTop = elem.scrollHeight;
+        console.log(elem.scrollHeight);
     };
 
     const handleNegotiationNeeded = async () => {
@@ -548,7 +551,6 @@ const MeetingPage = () => {
                         message.isSeen = true;
                         return message;
                     });
-                    setMessages(updatedMessage);
                 }}
                 className="absolute z-10 bottom-[40px] right-[40px] w-[70px] h-[70px] cursor-pointer bg-[rgba(255,255,255,.1)] rounded-full flex justify-center items-center"
             >
