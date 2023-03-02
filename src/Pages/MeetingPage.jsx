@@ -6,11 +6,14 @@ import { BsCameraVideo, BsCameraVideoOff } from "react-icons/bs";
 import { BsPinAngleFill, BsPinAngle } from "react-icons/bs";
 import { FiMonitor } from "react-icons/fi";
 import { MdStopScreenShare } from "react-icons/md";
+import { AiOutlineMessage } from "react-icons/ai";
 import useVideo from "../app/useVideo";
 import { useSocket } from "../context/socket";
+import ChatAudio from "../assets/msg.mp3";
 import { useGetMeetingInfoQuery } from "../service/meeting/meetingService";
 import { useGetLoggedInUserQuery } from "../service/user/userService";
 import peer from "../app/webRtc";
+import Chat from "../Components/Chat";
 
 const MeetingPage = () => {
     const [incomingUserRequest, setIncomingUserRequest] = useState({
@@ -23,6 +26,10 @@ const MeetingPage = () => {
     const [remoteStreams, setRemoteStreams] = useState([]);
     const [myScreenStream, setMyScreeStream] = useState(null);
     const [pinnedVideo, setPinndedVideo] = useState(null);
+    const [mymessage, setMymessage] = useState("");
+    const [showChat, setShowChat] = useState(false);
+    const [messages, setMessages] = useState([]);
+    const chatAudioRef = useRef(new Audio(ChatAudio));
 
     const location = useLocation();
     const { video, audio } = location.state?.videoConstraint;
@@ -139,8 +146,27 @@ const MeetingPage = () => {
 
     //peer listeners
     const handleRecieveMessage = (ev) => {
-        console.log(ev);
+        const messageData = JSON.parse(ev.data);
+        console.log(messageData);
+        setMessages((prev) => {
+            return [...prev, messageData];
+        });
     };
+    const sendMessage = () => {
+        const messageData = {
+            message: mymessage,
+            toUser: incomingUserRequest.name,
+            fromUser: myName || userData?.data?.name,
+            sentAt: new Date(),
+            isSeen: false,
+        };
+        peer.chanel.send(JSON.stringify(messageData));
+        setMessages((prev) => {
+            return [...prev, messageData];
+        });
+        setMymessage("");
+    };
+
     const handleNegotiationNeeded = async () => {
         let toUser = incomingUserRequest.name;
         let me = myName || userData?.data?.name;
@@ -267,7 +293,7 @@ const MeetingPage = () => {
                                     audio: false,
                                     video: true,
                                 });
-                                // peer.peer.addTrack(track, stream)
+                                peer.peer.addTrack(track, stream);
                             }
                         });
                         return;
@@ -281,8 +307,17 @@ const MeetingPage = () => {
         }
     };
 
+    useEffect(() => {
+        if (!showChat) {
+            chatAudioRef.current.play();
+        }
+    }, [messages]);
+
     return (
-        <div className="h-[90vh]">
+        <div
+            className="h-[80vh] overflow-y-hidden"
+            onClick={() => setShowChat(false)}
+        >
             {myScreenStream && incomingUserRequest.name && (
                 <div className="w-[200px] absolute top-8 left-8">
                     <p className="font-semibold bg-base-300 p-2">
@@ -305,7 +340,7 @@ const MeetingPage = () => {
                 </div>
             </div>
             {incomingUserRequest.show && (
-                <div className="fixed w-screen bg-[rgba(0,0,0,.7)] z-10 top-0 right-0 left-0 bottom-0 h-screen">
+                <div className="fixed w-screen bg-[rgba(0,0,0,.7)] z-10 top-0 right-0 left-0 bottom-0 h-[98vh]">
                     <div className="bg-base-300  w-[400px] mx-auto p-4">
                         <p>Incoming Request</p>
                         <p className="mt-4">
@@ -346,14 +381,14 @@ const MeetingPage = () => {
                         {videoConstraint.audio ? (
                             <button
                                 onClick={toggleAudio}
-                                className="bg-primary hover:bg-primary-focus w-[50px] h-[50px] rounded-full flex justify-center items-center"
+                                className="bg-[rgba(255,255,255,.2)] hover:bg-primary-focus w-[50px] h-[50px] rounded-full flex justify-center items-center"
                             >
                                 <TbMicrophone className="text-2xl text-white" />
                             </button>
                         ) : (
                             <button
                                 onClick={toggleAudio}
-                                className="bg-[rgba(255,255,255,.2)] hover:bg-primary w-[50px] h-[50px] rounded-full flex justify-center items-center"
+                                className="bg-primary  hover:bg-primary w-[50px] h-[50px] rounded-full flex justify-center items-center"
                             >
                                 <TbMicrophoneOff className="text-2xl text-white" />
                             </button>
@@ -362,14 +397,14 @@ const MeetingPage = () => {
                         {videoConstraint.video ? (
                             <button
                                 onClick={toggleVideo}
-                                className="bg-primary hover:bg-primary-focus w-[50px] h-[50px] rounded-full flex justify-center items-center"
+                                className="bg-[rgba(255,255,255,.2)] hover:bg-primary-focus w-[50px] h-[50px] rounded-full flex justify-center items-center"
                             >
                                 <BsCameraVideo className="text-2xl text-white" />
                             </button>
                         ) : (
                             <button
                                 onClick={toggleVideo}
-                                className="bg-[rgba(255,255,255,.2)] hover:bg-primary w-[50px] h-[50px] rounded-full flex justify-center items-center"
+                                className="bg-primary  hover:bg-primary w-[50px] h-[50px] rounded-full flex justify-center items-center"
                             >
                                 <BsCameraVideoOff className="text-2xl text-white" />
                             </button>
@@ -378,14 +413,14 @@ const MeetingPage = () => {
                         {!myScreenStream ? (
                             <button
                                 onClick={shareScreenStream}
-                                className="bg-primary hover:bg-primary-focus w-[50px] h-[50px] rounded-full flex justify-center items-center"
+                                className="bg-[rgba(255,255,255,.2)] hover:bg-primary-focus w-[50px] h-[50px] rounded-full flex justify-center items-center"
                             >
                                 <FiMonitor className="text-2xl text-white" />
                             </button>
                         ) : (
                             <button
                                 onClick={stopScreenShare}
-                                className="bg-[rgba(255,255,255,.2)] hover:bg-primary w-[50px] h-[50px] rounded-full flex justify-center items-center"
+                                className="bg-primary hover:bg-primary w-[50px] h-[50px] rounded-full flex justify-center items-center"
                             >
                                 <MdStopScreenShare className="text-2xl text-white" />
                             </button>
@@ -503,6 +538,48 @@ const MeetingPage = () => {
                         })}
                     </div>
                 </div>
+            </div>
+
+            <div
+                onClick={(e) => {
+                    e.stopPropagation();
+                    setShowChat(true);
+                    const updatedMessage = messages.map((message) => {
+                        message.isSeen = true;
+                        return message;
+                    });
+                    setMessages(updatedMessage);
+                }}
+                className="absolute z-10 bottom-[40px] right-[40px] w-[70px] h-[70px] cursor-pointer bg-[rgba(255,255,255,.1)] rounded-full flex justify-center items-center"
+            >
+                {!showChat &&
+                    messages.filter(
+                        (message) =>
+                            !message.isSeen &&
+                            message.fromUser !==
+                                (myName || userData?.data?.name)
+                    ).length >= 1 && (
+                        <div className="absolute bg-primary text-primary-content w-[20px] h-[20px] rounded-full flex justify-center items-center top-4 left-4">
+                            {
+                                messages.filter((message) => !message.isSeen)
+                                    .length
+                            }
+                        </div>
+                    )}
+                <AiOutlineMessage className="text-4xl text-secondary-focus" />
+                {showChat && (
+                    <div className="absolute bottom-10 right-8">
+                        {" "}
+                        <Chat
+                            messages={messages}
+                            sendMessage={sendMessage}
+                            currentUser={myName || userData?.data?.name}
+                            setMymessage={setMymessage}
+                            myMessage={mymessage}
+                            setShowChat={setShowChat}
+                        />
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -6,6 +6,7 @@ import {
     useLazyGetMeetingInfoQuery,
 } from "../service/meeting/meetingService";
 import { useNavigate } from "react-router-dom";
+import MeetingSvg from "../assets/meeting-svg.svg";
 
 const HomePage = () => {
     const [meetingCode, setMeetingCode] = useState("");
@@ -41,24 +42,51 @@ const HomePage = () => {
 
     return (
         <div>
-            <Header />
-            <div className="card">
-                <div className="card-body">
-                    <input
-                        onChange={(e) => setMeetingCode(e.target.value)}
-                        value={meetingCode}
-                        className="input input-bordered p-2"
-                        placeholder="Meeting Code"
-                    />
-                    <button onClick={handleJoinMeeting} className="btn">
-                        Join
-                    </button>
-                    <button
-                        onClick={handleCreateMeeting}
-                        className="btn btn-outline"
-                    >
-                        Create New Meeting
-                    </button>
+            <div className="h-screen">
+                <Header />
+                <div className="flex h-[80vh] justify-between items-center px-[180px]">
+                    <div className="max-w-[500px]">
+                        <h1 className="text-4xl">Premium Video Meetings.</h1>
+                        <h1 className="text-4xl mt-2 mb-8">
+                            Now Free For everyone.
+                        </h1>
+
+                        <p>
+                            Lorem ipsum dolor sit amet, consectetur adipisicing
+                            elit. Dolores impedit laudantium modi nihil placeat
+                            quis rerum unde veniam veritatis voluptates?
+                        </p>
+
+                        <div className="max-w-[400px] mt-8">
+                            <input
+                                onChange={(e) => setMeetingCode(e.target.value)}
+                                type="text"
+                                placeholder="Meeting Code"
+                                className="p-2 pl-5 w-full input input-bordered"
+                            />
+                            <button
+                                onClick={handleJoinMeeting}
+                                className="btn btn-primary w-full mt-4"
+                            >
+                                Join Meeting
+                            </button>
+                            <button
+                                onClick={handleCreateMeeting}
+                                className="btn btn-primary btn-outline w-full mt-2"
+                            >
+                                New Meeting
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <img src={MeetingSvg} alt="me" />
+                        <div className="text-center mt-4">
+                            <p className="text-2xl">
+                                Get a link that you can share.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

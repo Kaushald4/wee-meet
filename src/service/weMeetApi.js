@@ -5,7 +5,7 @@ export const weMeetApi = createApi({
     baseQuery: fetchBaseQuery({
         baseUrl:
             process.env.REACT_APP_MYENV === "development"
-                ? "http://localhost:4000/api/v1"
+                ? process.env.REACT_APP_BACKEND_URL
                 : process.env.REACT_APP_BACKEND_URL,
     }),
     endpoints: () => ({}),
