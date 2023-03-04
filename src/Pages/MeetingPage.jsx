@@ -14,6 +14,7 @@ import { useGetMeetingInfoQuery } from "../service/meeting/meetingService";
 import { useGetLoggedInUserQuery } from "../service/user/userService";
 import peer from "../app/webRtc";
 import Chat from "../Components/Chat";
+import streamsaver from "streamsaver";
 
 const MeetingPage = () => {
     const [incomingUserRequest, setIncomingUserRequest] = useState({
@@ -33,6 +34,13 @@ const MeetingPage = () => {
     const [mymessage, setMymessage] = useState("");
     const [showChat, setShowChat] = useState(false);
     const [messages, setMessages] = useState([]);
+    const [recievedFile, setRecievedFile] = useState({
+        name: "",
+        size: 0,
+        type: "",
+    });
+    const recievedFileChunkRef = useRef([]);
+    const [recievedFileProgress, setRecievedFileProgress] = useState(0);
     const chatAudioRef = useRef(new Audio(ChatAudio));
 
     const location = useLocation();
@@ -53,6 +61,7 @@ const MeetingPage = () => {
     const pinnedVideoRef = useRef();
     const myScreenStreamRef = useRef(null);
     const remoteVideoRef = useRef(null);
+    const remoteScreenRef = useRef(null);
 
     const { data: userData } = useGetLoggedInUserQuery();
 
@@ -106,7 +115,7 @@ const MeetingPage = () => {
         await peer.setRemoteAnswer(answer);
     };
 
-    //negotiation need socket signaling
+    //negotiation needed socket signaling
     const handleNegotationOffer = async (data) => {
         const { offer } = data;
         const answer = await peer.createAnswer(offer);
@@ -149,27 +158,70 @@ const MeetingPage = () => {
         };
     }, [incomingUserRequest]);
 
+    const downloadFile = () => {
+        const blob = new Blob(recievedFileChunkRef.current);
+        const stream = blob.stream();
+        const fileStream = streamsaver.createWriteStream(recievedFile.name);
+        stream.pipeTo(fileStream);
+    };
+
     //peer listeners
     const handleRecieveMessage = (ev) => {
-        const messageData = JSON.parse(ev.data);
-        if (messageData?.screenStream) {
-            setRemoteScreenStream({
-                ...remoteScreenStream,
-                id: messageData.id,
-            });
-            return;
+        console.log(ev);
+        if (typeof ev.data === "string") {
+            const messageData = JSON.parse(ev.data);
+            if (messageData?.sentProgress) {
+                setRecievedFileProgress(messageData.sentProgress);
+                return;
+            }
+
+            if (messageData?.done) {
+                // here we recieved full binary data
+                if (
+                    recievedFile.type === "jpeg" ||
+                    recievedFile.type === "jpg" ||
+                    recievedFile.type === "png"
+                ) {
+                    var reader = new FileReader();
+                    reader.onloadend = function () {
+                        console.log(reader.result);
+                    };
+                    reader.readAsDataURL(recievedFileChunkRef.current);
+                }
+            } else {
+                //handle screen stream id
+                if (messageData?.screenStream) {
+                    setRemoteScreenStream({
+                        ...remoteScreenStream,
+                        id: messageData.id,
+                    });
+                    return;
+                }
+                // handle normal message
+                setMessages((prev) => {
+                    return [...prev, messageData];
+                });
+
+                //handle binary message info
+                if (messageData?.binaryData) {
+                    setRecievedFile(messageData.binaryData);
+                }
+            }
+        } else {
+            // handle recieving file chunks
+            // worker.postMessage(ev.data);
+
+            recievedFileChunkRef.current.push(ev.data);
         }
-        setMessages((prev) => {
-            return [...prev, messageData];
-        });
     };
-    const sendMessage = () => {
+    const sendMessage = (binaryData) => {
         const messageData = {
             message: mymessage,
             toUser: incomingUserRequest.name,
             fromUser: myName || userData?.data?.name,
             sentAt: new Date(),
             isSeen: false,
+            binaryData: binaryData,
         };
         setMessages((prev) => {
             return [...prev, messageData];
@@ -199,7 +251,12 @@ const MeetingPage = () => {
     const handleTrack = (event) => {
         const streams = event.streams;
         if (streams[0].id === remoteScreenStream.id) {
-            setRemoteScreenStream(streams[0]);
+            // handle screen stream
+            setRemoteScreenStream({
+                id: remoteScreenStream.id,
+                stream: streams[0],
+            });
+            remoteScreenRef.current.srcObject = streams[0];
             setPinndedVideo(streams[0]);
             pinnedVideoRef.current.srcObject = streams[0];
         } else {
@@ -333,16 +390,12 @@ const MeetingPage = () => {
         }
     }, [messages]);
 
-    useEffect(() => {
-        return () => {};
-    }, []);
-
     return (
         <div
             className="h-[90vh] overflow-y-hidden"
             onClick={() => setShowChat(false)}
         >
-            {myScreenStream && incomingUserRequest.name && (
+            {remoteScreenStream.stream && (
                 <div className="w-[200px] absolute top-8 left-8">
                     <p className="font-semibold bg-base-300 p-2">
                         {incomingUserRequest.name} is Presenting
@@ -523,6 +576,45 @@ const MeetingPage = () => {
                         ></video>
                     </div>
 
+                    <div
+                        className={
+                            !remoteScreenStream.stream
+                                ? `invisible hidden w-[370px] h-[260px] relative mb-2`
+                                : `w-[370px] h-[260px] relative mb-2 group`
+                        }
+                    >
+                        <div className="absolute z-10 left-5 top-2 text-white">
+                            {incomingUserRequest.name}
+                        </div>
+                        <div className="absolute top-0 left-0 right-0 bottom-0 group-hover:bg-[rgba(0,0,0,.5)] flex justify-end">
+                            <div className="invisible group-hover:visible mr-[20px] mt-4  cursor-pointer z-20">
+                                {pinnedVideo ? (
+                                    <BsPinAngleFill
+                                        onClick={unPinVideo}
+                                        className="text-4xl text-secondary"
+                                    />
+                                ) : (
+                                    <BsPinAngle
+                                        onClick={() =>
+                                            setPinndedVideo(
+                                                remoteScreenStream.stream
+                                            )
+                                        }
+                                        className="text-4xl text-secondary "
+                                    />
+                                )}
+                            </div>
+                        </div>
+                        <video
+                            ref={remoteScreenRef}
+                            playsInline
+                            autoPlay
+                            width={"100%"}
+                            style={{ objectFit: "cover" }}
+                            height={"100%"}
+                        ></video>
+                    </div>
+
                     <div className="w-[370px] h-[260px] relative mt-5">
                         <div className="absolute z-10 left-8 top-2 text-white">
                             {incomingUserRequest.name}
@@ -594,6 +686,10 @@ const MeetingPage = () => {
                             setMymessage={setMymessage}
                             myMessage={mymessage}
                             setShowChat={setShowChat}
+                            peer={peer}
+                            downloadFile={downloadFile}
+                            recievedFileProgress={recievedFileProgress}
+                            recievedFile={recievedFile}
                         />
                     </div>
                 )}

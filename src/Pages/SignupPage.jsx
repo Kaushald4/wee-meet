@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useSignUpMutation } from "../service/user/userService";
 
 const SignupPage = (props) => {
@@ -9,6 +9,7 @@ const SignupPage = (props) => {
         name: "",
     });
     const [trigger, result] = useSignUpMutation();
+    const navigate = useNavigate();
 
     useEffect(() => {
         return () => {};
@@ -27,6 +28,7 @@ const SignupPage = (props) => {
             .unwrap()
             .then((res) => {
                 if (res?.data) {
+                    navigate("/login");
                 }
             });
     };
