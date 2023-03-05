@@ -1,20 +1,18 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
-import ReactPlayer from "react-player";
 import { TbMicrophone, TbMicrophoneOff } from "react-icons/tb";
 import { BsCameraVideo, BsCameraVideoOff } from "react-icons/bs";
-import { BsPinAngleFill, BsPinAngle } from "react-icons/bs";
 import { FiMonitor } from "react-icons/fi";
 import { MdStopScreenShare } from "react-icons/md";
 import { AiOutlineMessage } from "react-icons/ai";
 import useVideo from "../app/useVideo";
 import { useSocket } from "../context/socket";
 import ChatAudio from "../assets/msg.mp3";
-import { useGetMeetingInfoQuery } from "../service/meeting/meetingService";
 import { useGetLoggedInUserQuery } from "../service/user/userService";
 import peer from "../app/webRtc";
 import Chat from "../Components/Chat";
 import streamsaver from "streamsaver";
+import Video from "../Components/Video";
 
 const MeetingPage = () => {
     const [incomingUserRequest, setIncomingUserRequest] = useState({
@@ -294,9 +292,9 @@ const MeetingPage = () => {
         };
     }, [peer, incomingUserRequest, chanel, remoteStream, handleRecieveMessage]);
 
-    const shareMyVideoStream = () => {
+    const shareMyVideoStream = (constraints) => {
         navigator.mediaDevices
-            .getUserMedia(location.state?.videoConstraint)
+            .getUserMedia(constraints || location.state?.videoConstraint)
             .then((stream) => {
                 localVideoRef.current.srcObject = stream;
                 setLocalVideoStream(stream);
@@ -354,6 +352,8 @@ const MeetingPage = () => {
                             video: false,
                         };
                     });
+                    localVideoRef.current.srcObject = null;
+                    shareMyVideoStream({ video: false, audio: true });
                 }
             });
         } else {
@@ -506,147 +506,45 @@ const MeetingPage = () => {
                 </div>
 
                 <div className="h-[95vh] overflow-y-auto">
-                    <div className="w-[370px] h-[260px] relative mb-2 overflow-hidden group">
-                        <div className="absolute z-10 left-5 top-2 text-white">
-                            You
-                        </div>
-                        <div className="absolute top-0 left-0 right-0 bottom-0 group-hover:bg-[rgba(0,0,0,.5)] flex justify-end">
-                            <div className="invisible group-hover:visible mr-[20px] mt-4  cursor-pointer z-20">
-                                {pinnedVideo ? (
-                                    <BsPinAngleFill
-                                        onClick={unPinVideo}
-                                        className="text-4xl text-secondary"
-                                    />
-                                ) : (
-                                    <BsPinAngle
-                                        onClick={() =>
-                                            setPinndedVideo(localVideoStream)
-                                        }
-                                        className="text-4xl text-secondary "
-                                    />
-                                )}
-                            </div>
-                        </div>
-                        <video
-                            ref={localVideoRef}
-                            playsInline
-                            autoPlay
-                            muted
-                            width={"100%"}
-                            style={{ objectFit: "cover" }}
-                            height={"100%"}
-                        ></video>
-                    </div>
+                    {/* {local video stream} */}
+                    <Video
+                        pinnedVideo={pinnedVideo}
+                        setPinndedVideo={setPinndedVideo}
+                        unPinVideo={unPinVideo}
+                        videoRef={localVideoRef}
+                        videoStream={localVideoStream}
+                        username={"You"}
+                    />
 
-                    <div
-                        className={
-                            !myScreenStream
-                                ? `invisible hidden w-[370px] h-[260px] relative mb-2`
-                                : `w-[370px] h-[260px] relative mb-2 group`
-                        }
-                    >
-                        <div className="absolute z-10 left-5 top-2 text-white">
-                            You
-                        </div>
-                        <div className="absolute top-0 left-0 right-0 bottom-0 group-hover:bg-[rgba(0,0,0,.5)] flex justify-end">
-                            <div className="invisible group-hover:visible mr-[20px] mt-4  cursor-pointer z-20">
-                                {pinnedVideo ? (
-                                    <BsPinAngleFill
-                                        onClick={unPinVideo}
-                                        className="text-4xl text-secondary"
-                                    />
-                                ) : (
-                                    <BsPinAngle
-                                        onClick={() =>
-                                            setPinndedVideo(myScreenStream)
-                                        }
-                                        className="text-4xl text-secondary "
-                                    />
-                                )}
-                            </div>
-                        </div>
-                        <video
-                            ref={myScreenStreamRef}
-                            playsInline
-                            autoPlay
-                            muted
-                            width={"100%"}
-                            style={{ objectFit: "cover" }}
-                            height={"100%"}
-                        ></video>
-                    </div>
+                    {/* {local Screen stream} */}
+                    <Video
+                        pinnedVideo={pinnedVideo}
+                        setPinndedVideo={setPinndedVideo}
+                        unPinVideo={unPinVideo}
+                        videoRef={myScreenStreamRef}
+                        videoStream={myScreenStream}
+                        username={"You"}
+                    />
 
-                    <div
-                        className={
-                            !remoteScreenStream.stream
-                                ? `invisible hidden w-[370px] h-[260px] relative mb-2`
-                                : `w-[370px] h-[260px] relative mb-2 group`
-                        }
-                    >
-                        <div className="absolute z-10 left-5 top-2 text-white">
-                            {incomingUserRequest.name}
-                        </div>
-                        <div className="absolute top-0 left-0 right-0 bottom-0 group-hover:bg-[rgba(0,0,0,.5)] flex justify-end">
-                            <div className="invisible group-hover:visible mr-[20px] mt-4  cursor-pointer z-20">
-                                {pinnedVideo ? (
-                                    <BsPinAngleFill
-                                        onClick={unPinVideo}
-                                        className="text-4xl text-secondary"
-                                    />
-                                ) : (
-                                    <BsPinAngle
-                                        onClick={() =>
-                                            setPinndedVideo(
-                                                remoteScreenStream.stream
-                                            )
-                                        }
-                                        className="text-4xl text-secondary "
-                                    />
-                                )}
-                            </div>
-                        </div>
-                        <video
-                            ref={remoteScreenRef}
-                            playsInline
-                            autoPlay
-                            width={"100%"}
-                            style={{ objectFit: "cover" }}
-                            height={"100%"}
-                        ></video>
-                    </div>
+                    {/* {remote video stream} */}
+                    <Video
+                        pinnedVideo={pinnedVideo}
+                        setPinndedVideo={setPinndedVideo}
+                        unPinVideo={unPinVideo}
+                        videoRef={remoteVideoRef}
+                        videoStream={remoteStream}
+                        username={incomingUserRequest.name}
+                    />
 
-                    <div className="w-[370px] h-[260px] relative mt-5">
-                        <div className="absolute z-10 left-8 top-2 text-white">
-                            {incomingUserRequest.name}
-                        </div>
-                        <div className="w-[370px] h-[280px] relative group">
-                            <div className="absolute top-0 left-0 right-0 bottom-0 group-hover:bg-[rgba(0,0,0,.5)] flex justify-end">
-                                <div className="invisible group-hover:visible mr-[20px] mt-4  cursor-pointer z-20">
-                                    {pinnedVideo ? (
-                                        <BsPinAngleFill
-                                            onClick={unPinVideo}
-                                            className="text-4xl text-secondary"
-                                        />
-                                    ) : (
-                                        <BsPinAngle
-                                            onClick={() =>
-                                                setPinndedVideo(remoteStream)
-                                            }
-                                            className="text-4xl text-secondary "
-                                        />
-                                    )}
-                                </div>
-                            </div>
-                            <video
-                                ref={remoteVideoRef}
-                                playsInline
-                                autoPlay
-                                width={"100%"}
-                                style={{ objectFit: "cover" }}
-                                height={"100%"}
-                            ></video>
-                        </div>
-                    </div>
+                    {/* {remote screen stream} */}
+                    <Video
+                        pinnedVideo={pinnedVideo}
+                        setPinndedVideo={setPinndedVideo}
+                        unPinVideo={unPinVideo}
+                        videoRef={remoteScreenRef}
+                        videoStream={remoteScreenStream.stream}
+                        username={incomingUserRequest.name}
+                    />
                 </div>
             </div>
 
