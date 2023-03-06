@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import { TbMicrophone, TbMicrophoneOff } from "react-icons/tb";
 import { BsCameraVideo, BsCameraVideoOff } from "react-icons/bs";
+import { FaExchangeAlt } from "react-icons/fa";
 import { FiMonitor } from "react-icons/fi";
 import { MdStopScreenShare } from "react-icons/md";
 import { AiOutlineMessage } from "react-icons/ai";
@@ -28,6 +29,7 @@ const MeetingPage = () => {
         stream: null,
         id: "",
     });
+    const [forceUpdate, setForceUpdate] = useState(false);
     const [pinnedVideo, setPinndedVideo] = useState(null);
     const [mymessage, setMymessage] = useState("");
     const [showChat, setShowChat] = useState(false);
@@ -50,7 +52,6 @@ const MeetingPage = () => {
         localVideoRef,
         localVideoStream,
         setLocalVideoStream,
-        toggleAudio,
         videoConstraint,
         setVideoConstraint,
     } = useVideo();
@@ -165,9 +166,19 @@ const MeetingPage = () => {
 
     //peer listeners
     const handleRecieveMessage = (ev) => {
-        console.log(ev);
         if (typeof ev.data === "string") {
             const messageData = JSON.parse(ev.data);
+            //handle remote audio disable enable notification
+            if (messageData?.type === "audio") {
+                remoteStream.getTracks().forEach((track) => {
+                    if (track.kind === "audio") {
+                        track.enabled = !track.enabled;
+                        setForceUpdate(!forceUpdate);
+                    }
+                });
+                return;
+            }
+
             if (messageData?.sentProgress) {
                 setRecievedFileProgress(messageData.sentProgress);
                 return;
@@ -260,6 +271,8 @@ const MeetingPage = () => {
         } else {
             remoteVideoRef.current.srcObject = streams[0];
             setRemoteStream(streams[0]);
+            setPinndedVideo(streams[0]);
+            pinnedVideoRef.current.srcObject = streams[0];
         }
     };
 
@@ -301,6 +314,10 @@ const MeetingPage = () => {
                 stream.getTracks().forEach((track) => {
                     sendersRef.current.push(peer.peer.addTrack(track, stream));
                 });
+                if (!incomingUserRequest.name && !remoteScreenStream.stream) {
+                    pinnedVideoRef.current.srcObject = stream;
+                    setPinndedVideo(stream);
+                }
             });
     };
 
@@ -354,6 +371,13 @@ const MeetingPage = () => {
                     });
                     localVideoRef.current.srcObject = null;
                     shareMyVideoStream({ video: false, audio: true });
+                    if (
+                        !incomingUserRequest.name &&
+                        !remoteScreenStream.stream
+                    ) {
+                        pinnedVideoRef.current.srcObject = localVideoStream;
+                        setPinndedVideo(localVideoStream);
+                    }
                 }
             });
         } else {
@@ -373,6 +397,13 @@ const MeetingPage = () => {
                                 peer.peer.addTrack(track, stream);
                             }
                         });
+                        if (
+                            !incomingUserRequest.name &&
+                            !remoteScreenStream.stream
+                        ) {
+                            pinnedVideoRef.current.srcObject = stream;
+                            setPinndedVideo(stream);
+                        }
                         return;
                     }
                     stream.getTracks().forEach((track) => {
@@ -380,8 +411,32 @@ const MeetingPage = () => {
                     });
                     setLocalVideoStream(stream);
                     setVideoConstraint({ audio: true, video: true });
+                    if (
+                        !incomingUserRequest.name &&
+                        !remoteScreenStream.stream
+                    ) {
+                        pinnedVideoRef.current.srcObject = stream;
+                        setPinndedVideo(stream);
+                    }
                 });
         }
+    };
+
+    const toggleAudio = () => {
+        localVideoStream.getTracks().forEach((track) => {
+            if (track.kind === "audio") {
+                track.enabled = !track.enabled;
+                setVideoConstraint((prev) => {
+                    return {
+                        ...prev,
+                        audio: track.enabled,
+                    };
+                });
+                peer.chanel.send(
+                    JSON.stringify({ type: "audio", enabled: track.enabled })
+                );
+            }
+        });
     };
 
     useEffect(() => {
@@ -397,12 +452,13 @@ const MeetingPage = () => {
         >
             {remoteScreenStream.stream && (
                 <div className="w-[200px] absolute top-8 left-8">
-                    <p className="font-semibold bg-base-300 p-2">
+                    <p className="font-semibold bg-base-300 p-2 capitalize">
                         {incomingUserRequest.name} is Presenting
                     </p>
                 </div>
             )}
-            <div className="ml-auto w-[150px] py-5 flex justify-center items-center gap-2">
+
+            <div className="ml-auto w-[150px] pb-5 pt-2 flex justify-center items-center gap-2">
                 <p className="capitalize">{myName || userData?.data?.name}</p>
                 <div className="avatar">
                     <div className="avatar placeholder">
@@ -443,16 +499,24 @@ const MeetingPage = () => {
             <div className="flex justify-between">
                 {/* pinned video */}
                 <div className="w-[80vw]">
-                    {pinnedVideo && (
-                        <div className="w-[77vw] mx-auto overflow-hidden rounded-lg h-[80vh]">
-                            <video
-                                ref={pinnedVideoRef}
-                                autoPlay
-                                playsInline
-                                className="w-[100%] h-[100%] object-cover"
-                            ></video>
-                        </div>
-                    )}
+                    <div
+                        className={
+                            pinnedVideo
+                                ? "w-full mx-auto overflow-hidden rounded-lg h-[84vh] ml-4"
+                                : "w-full mx-auto overflow-hidden rounded-lg h-[84vh] hidden invisible"
+                        }
+                    >
+                        <Video
+                            pinnedVideo={pinnedVideo}
+                            setPinndedVideo={setPinndedVideo}
+                            unPinVideo={unPinVideo}
+                            videoRef={pinnedVideoRef}
+                            videoStream={pinnedVideo}
+                            hoverDisable
+                            username={incomingUserRequest.name || "You"}
+                            muted
+                        />
+                    </div>
 
                     <div className="absolute bottom-5 gap-5 w-full flex justify-center">
                         {videoConstraint.audio ? (
@@ -505,46 +569,73 @@ const MeetingPage = () => {
                     </div>
                 </div>
 
-                <div className="h-[95vh] overflow-y-auto">
+                <div className="h-[95vh] overflow-y-auto mr-4 ml-8">
                     {/* {local video stream} */}
-                    <Video
-                        pinnedVideo={pinnedVideo}
-                        setPinndedVideo={setPinndedVideo}
-                        unPinVideo={unPinVideo}
-                        videoRef={localVideoRef}
-                        videoStream={localVideoStream}
-                        username={"You"}
-                    />
+                    <div className="min-w-[370px] h-[260px] mb-4">
+                        <Video
+                            pinnedVideo={pinnedVideo}
+                            setPinndedVideo={setPinndedVideo}
+                            unPinVideo={unPinVideo}
+                            videoRef={localVideoRef}
+                            videoStream={localVideoStream}
+                            username={"You"}
+                            muted
+                        />
+                    </div>
 
                     {/* {local Screen stream} */}
-                    <Video
-                        pinnedVideo={pinnedVideo}
-                        setPinndedVideo={setPinndedVideo}
-                        unPinVideo={unPinVideo}
-                        videoRef={myScreenStreamRef}
-                        videoStream={myScreenStream}
-                        username={"You"}
-                    />
+                    <div
+                        className={
+                            myScreenStream
+                                ? "w-[370px] h-[260px] mb-4"
+                                : "w-[370px] h-[260px] hidden invisible"
+                        }
+                    >
+                        <Video
+                            pinnedVideo={pinnedVideo}
+                            setPinndedVideo={setPinndedVideo}
+                            unPinVideo={unPinVideo}
+                            videoRef={myScreenStreamRef}
+                            videoStream={myScreenStream}
+                            username={"You"}
+                        />
+                    </div>
 
                     {/* {remote video stream} */}
-                    <Video
-                        pinnedVideo={pinnedVideo}
-                        setPinndedVideo={setPinndedVideo}
-                        unPinVideo={unPinVideo}
-                        videoRef={remoteVideoRef}
-                        videoStream={remoteStream}
-                        username={incomingUserRequest.name}
-                    />
+                    <div
+                        className={
+                            remoteStream
+                                ? "w-[370px] h-[260px] mb-4"
+                                : "w-[370px] h-[260px] hidden invisible"
+                        }
+                    >
+                        <Video
+                            pinnedVideo={pinnedVideo}
+                            setPinndedVideo={setPinndedVideo}
+                            unPinVideo={unPinVideo}
+                            videoRef={remoteVideoRef}
+                            videoStream={remoteStream}
+                            username={incomingUserRequest.name}
+                        />
+                    </div>
 
                     {/* {remote screen stream} */}
-                    <Video
-                        pinnedVideo={pinnedVideo}
-                        setPinndedVideo={setPinndedVideo}
-                        unPinVideo={unPinVideo}
-                        videoRef={remoteScreenRef}
-                        videoStream={remoteScreenStream.stream}
-                        username={incomingUserRequest.name}
-                    />
+                    <div
+                        className={
+                            remoteScreenStream.stream
+                                ? "w-[370px] h-[260px]"
+                                : "w-[370px] h-[260px] hidden invisible"
+                        }
+                    >
+                        <Video
+                            pinnedVideo={pinnedVideo}
+                            setPinndedVideo={setPinndedVideo}
+                            unPinVideo={unPinVideo}
+                            videoRef={remoteScreenRef}
+                            videoStream={remoteScreenStream.stream}
+                            username={incomingUserRequest.name}
+                        />
+                    </div>
                 </div>
             </div>
 
