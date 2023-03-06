@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useLocation, useParams } from "react-router-dom";
+import { Navigate, useLocation, useParams } from "react-router-dom";
 import { TbMicrophone, TbMicrophoneOff } from "react-icons/tb";
 import { BsCameraVideo, BsCameraVideoOff } from "react-icons/bs";
 import { FaExchangeAlt } from "react-icons/fa";
@@ -12,8 +12,8 @@ import ChatAudio from "../assets/msg.mp3";
 import { useGetLoggedInUserQuery } from "../service/user/userService";
 import peer from "../app/webRtc";
 import Chat from "../Components/Chat";
-import streamsaver from "streamsaver";
 import Video from "../Components/Video";
+import { useFileShare } from "../context/FileShare";
 
 const MeetingPage = () => {
     const [incomingUserRequest, setIncomingUserRequest] = useState({
@@ -34,17 +34,10 @@ const MeetingPage = () => {
     const [mymessage, setMymessage] = useState("");
     const [showChat, setShowChat] = useState(false);
     const [messages, setMessages] = useState([]);
-    const [recievedFile, setRecievedFile] = useState({
-        name: "",
-        size: 0,
-        type: "",
-    });
-    const recievedFileChunkRef = useRef([]);
-    const [recievedFileProgress, setRecievedFileProgress] = useState(0);
+
     const chatAudioRef = useRef(new Audio(ChatAudio));
 
     const location = useLocation();
-    const { video, audio } = location.state?.videoConstraint;
     const params = useParams();
     const { meetingCode } = params;
     const { socket } = useSocket();
@@ -55,6 +48,16 @@ const MeetingPage = () => {
         videoConstraint,
         setVideoConstraint,
     } = useVideo();
+
+    const {
+        sendFile,
+        selectedFile,
+        setRecievedFile,
+        recievedFileChunkRef,
+        setRecievedFileProgress,
+        recievedFile,
+        recivedChunk,
+    } = useFileShare();
 
     const sendersRef = useRef([]);
     const pinnedVideoRef = useRef();
@@ -69,7 +72,11 @@ const MeetingPage = () => {
         setIncomingUserRequest({ ...incomingUserRequest, show: false });
         socket.emit("join:request:accept", { name, socketId });
     };
-    const handleRejectCall = () => {};
+    const handleRejectCall = () => {
+        const { name, socketId } = incomingUserRequest;
+        setIncomingUserRequest({ ...incomingUserRequest, show: false });
+        socket.emit("join:request:reject", { name, socketId });
+    };
 
     useEffect(() => {
         let isOtherUser = location.state?.otherUser;
@@ -135,8 +142,15 @@ const MeetingPage = () => {
         await peer.peer.addIceCandidate(candi);
     };
 
+    const handleUserDisconnected = (data) => {
+        setIncomingUserRequest({ name: "", show: false, socketId: "" });
+        setPinndedVideo(null);
+        setRemoteScreenStream({ id: "", stream: "" });
+        setRemoteStream(null);
+    };
     useEffect(() => {
         socket.on("incoming:join:request", handleIncomingJoinRequest);
+
         socket.on("user:joined", handleNewUserJoined);
         socket.on("incoming-offer", handleIncomingOffer);
         socket.on("offer-accepted", handleOfferAccepted);
@@ -144,6 +158,8 @@ const MeetingPage = () => {
         socket.on("negotiation:needed", handleNegotationOffer);
         socket.on("negotiation-result", handleNegotiationResult);
         socket.on("icecandidate", handleIceCandidate);
+
+        socket.on("user-disconnect", handleUserDisconnected);
 
         return () => {
             socket.off("incoming:join:request", handleIncomingJoinRequest);
@@ -154,15 +170,9 @@ const MeetingPage = () => {
             socket.off("negotiation:needed", handleNegotationOffer);
             socket.off("icecandidate", handleIceCandidate);
             socket.off("negotiation-result", handleNegotiationResult);
+            socket.off("user-disconnect", handleUserDisconnected);
         };
     }, [incomingUserRequest]);
-
-    const downloadFile = () => {
-        const blob = new Blob(recievedFileChunkRef.current);
-        const stream = blob.stream();
-        const fileStream = streamsaver.createWriteStream(recievedFile.name);
-        stream.pipeTo(fileStream);
-    };
 
     //peer listeners
     const handleRecieveMessage = (ev) => {
@@ -179,64 +189,71 @@ const MeetingPage = () => {
                 return;
             }
 
-            if (messageData?.sentProgress) {
-                setRecievedFileProgress(messageData.sentProgress);
+            //handle screen stream id
+            if (messageData?.screenStream) {
+                setRemoteScreenStream({
+                    ...remoteScreenStream,
+                    id: messageData.id,
+                });
+                return;
+            }
+
+            if (messageData?.binaryData) {
+                setRecievedFile(messageData);
+                setMessages((prev) => {
+                    return [...prev, messageData];
+                });
                 return;
             }
 
             if (messageData?.done) {
-                // here we recieved full binary data
-                if (
-                    recievedFile.type === "jpeg" ||
-                    recievedFile.type === "jpg" ||
-                    recievedFile.type === "png"
-                ) {
-                    var reader = new FileReader();
-                    reader.onloadend = function () {
-                        console.log(reader.result);
-                    };
-                    reader.readAsDataURL(recievedFileChunkRef.current);
-                }
-            } else {
-                //handle screen stream id
-                if (messageData?.screenStream) {
-                    setRemoteScreenStream({
-                        ...remoteScreenStream,
-                        id: messageData.id,
-                    });
-                    return;
-                }
-                // handle normal message
-                setMessages((prev) => {
-                    return [...prev, messageData];
-                });
-
-                //handle binary message info
-                if (messageData?.binaryData) {
-                    setRecievedFile(messageData.binaryData);
-                }
+                return;
             }
-        } else {
-            // handle recieving file chunks
-            // worker.postMessage(ev.data);
 
+            // handle normal message
+            setMessages((prev) => {
+                return [...prev, messageData];
+            });
+        } else {
+            if (recievedFile) {
+                recivedChunk.current += ev.data.byteLength;
+                let progress = Math.floor(
+                    (recivedChunk.current / recievedFile.binaryData.size) * 100
+                );
+                setRecievedFileProgress(progress);
+            }
             recievedFileChunkRef.current.push(ev.data);
         }
     };
-    const sendMessage = (binaryData) => {
-        const messageData = {
-            message: mymessage,
-            toUser: incomingUserRequest.name,
-            fromUser: myName || userData?.data?.name,
-            sentAt: new Date(),
-            isSeen: false,
-            binaryData: binaryData,
-        };
+    const sendMessage = () => {
+        let messageData = {};
+        if (selectedFile.name) {
+            messageData = {
+                message: mymessage,
+                toUser: incomingUserRequest.name,
+                fromUser: myName || userData?.data?.name,
+                sentAt: new Date(),
+                isSeen: false,
+                binaryData: selectedFile,
+            };
+        } else {
+            messageData = {
+                message: mymessage,
+                toUser: incomingUserRequest.name,
+                fromUser: myName || userData?.data?.name,
+                sentAt: new Date(),
+                isSeen: false,
+                binaryData: null,
+            };
+        }
         setMessages((prev) => {
             return [...prev, messageData];
         });
         peer.chanel.send(JSON.stringify(messageData));
         setMymessage("");
+        if (selectedFile.name) {
+            sendFile(peer);
+        }
         var elem = document.getElementById("msg-box");
         elem.scrollTop = elem.scrollHeight + 200;
     };
@@ -350,6 +367,11 @@ const MeetingPage = () => {
 
     useEffect(() => {
         shareMyVideoStream();
+
+        return () => {
+            socket.disconnect();
+            peer.peer.close();
+        };
     }, []);
 
     useEffect(() => {
@@ -444,6 +466,10 @@ const MeetingPage = () => {
             chatAudioRef.current.play();
         }
     }, [messages]);
+
+    if (!location.state?.videoConstraint) {
+        return <Navigate to={`/we/${meetingCode}`} />;
+    }
 
     return (
         <div
@@ -571,7 +597,7 @@ const MeetingPage = () => {
 
                 <div className="h-[95vh] overflow-y-auto mr-4 ml-8">
                     {/* {local video stream} */}
-                    <div className="min-w-[370px] h-[260px] mb-4">
+                    <div className="w-[370px] h-[260px] mb-4">
                         <Video
                             pinnedVideo={pinnedVideo}
                             setPinndedVideo={setPinndedVideo}
@@ -672,13 +698,11 @@ const MeetingPage = () => {
                             messages={messages}
                             sendMessage={sendMessage}
                             currentUser={myName || userData?.data?.name}
+                            remoteUser={incomingUserRequest.name}
                             setMymessage={setMymessage}
                             myMessage={mymessage}
                             setShowChat={setShowChat}
                             peer={peer}
-                            downloadFile={downloadFile}
-                            recievedFileProgress={recievedFileProgress}
-                            recievedFile={recievedFile}
                         />
                     </div>
                 )}

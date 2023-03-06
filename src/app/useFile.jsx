@@ -75,13 +75,16 @@ const useFile = () => {
         }
 
         function readFile(done, value) {
-            readChunks += value.byteLength;
-            let sentProgress = Math.floor(
-                (readChunks / fileDetails.size) * 100
-            );
-            peer.chanel.send(value);
-            setProgress(sentProgress);
-            peer.chanel.send(JSON.stringify({ sentProgress }));
+            if (value) {
+                readChunks += value.byteLength;
+                let sentProgress = Math.floor(
+                    (readChunks / fileDetails.size) * 100
+                );
+                peer.chanel.send(value);
+                setProgress(sentProgress);
+                console.log(sentProgress);
+                peer.chanel.send(JSON.stringify({ sentProgress }));
+            }
         }
     };
 

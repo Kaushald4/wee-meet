@@ -52,12 +52,14 @@ const JoinPage = () => {
     const handleRequestToJoin = () => {
         const myName = name || userData?.data?.name;
         const toName = meetingInfo?.data?.author?.name;
-        setIsRequestingToJoin(true);
-        socket.emit("join:request", {
-            name: myName,
-            toUser: toName,
-            meetingCode,
-        });
+        if (myName) {
+            setIsRequestingToJoin(true);
+            socket.emit("join:request", {
+                name: myName,
+                toUser: toName,
+                meetingCode,
+            });
+        }
     };
 
     // socket listeners
@@ -75,25 +77,36 @@ const JoinPage = () => {
             },
         });
     };
+    const handleCallRejected = () => {
+        setIsRequestingToJoin(false);
+    };
+
+    const handleNameAlreadyTaken = () => {
+        setIsRequestingToJoin(false);
+        alert("Name Already taken! Choose Different Name.");
+    };
 
     useEffect(() => {
         socket.on("joined", handleUserJoined);
         socket.on("join:request:accept", handleJoinRequestAccepted);
+        socket.on("join:request:reject", handleCallRejected);
+
+        socket.on("name:taken", handleNameAlreadyTaken);
 
         return () => {
             socket.off("joined", handleUserJoined);
             socket.off("join:request:accept", handleJoinRequestAccepted);
+            socket.off("name:taken", handleNameAlreadyTaken);
+            socket.off("join:request:reject", handleCallRejected);
         };
     }, [videoConstraint, name]);
-
-    // peer listeners
 
     return (
         <div>
             <Header />
 
             <div className="flex gap-8 items-center justify-center mt-[80px]">
-                <div className="w-[700px] h-[500px] rounded-lg overflow-hidden relative">
+                <div className="w-[700px] h-[500px] rounded-lg overflow-hidden relative bg-base-300">
                     <video
                         ref={localVideoRef}
                         autoPlay
@@ -101,6 +114,20 @@ const JoinPage = () => {
                         playsInline
                         className="w-[100%] h-[100%] object-cover"
                     />
+                    {!videoConstraint.video && (
+                        <div className="absolute top-[40%] left-[42%]">
+                            <div className="avatar placeholder">
+                                <div className="bg-neutral-focus text-neutral-content rounded-full w-[120px]">
+                                    <span className="text-3xl capitalize">
+                                        {userData?.data?.name?.substring(
+                                            0,
+                                            2
+                                        ) || name.substring(0, 2)}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                     <div className="absolute bottom-5 gap-5 w-full flex justify-center">
                         {videoConstraint.audio ? (
                             <button
@@ -142,7 +169,7 @@ const JoinPage = () => {
                         </p>
                         {!userData?.data ? (
                             <>
-                                {isRequestingToJoin ? (
+                                {isMeetingInfoLoading ? (
                                     <div className="text-center">
                                         <h4 className="text-xl">
                                             Getting Ready
@@ -154,20 +181,34 @@ const JoinPage = () => {
                                     </div>
                                 ) : (
                                     <>
-                                        <input
-                                            placeholder="Name"
-                                            className="input input-bordered"
-                                            onChange={(e) =>
-                                                setName(e.target.value)
-                                            }
-                                            value={name}
-                                        />
-                                        <button
-                                            onClick={handleRequestToJoin}
-                                            className="btn btn-outline"
-                                        >
-                                            Ask to Join
-                                        </button>
+                                        {isRequestingToJoin ? (
+                                            <div className="text-center">
+                                                <p>
+                                                    You will be able to join in
+                                                    when someone lets you in.
+                                                    <progress className="progress progress-primary w-56"></progress>
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <input
+                                                    placeholder="Name"
+                                                    className="input input-bordered"
+                                                    onChange={(e) =>
+                                                        setName(e.target.value)
+                                                    }
+                                                    value={name}
+                                                />
+                                                <button
+                                                    onClick={
+                                                        handleRequestToJoin
+                                                    }
+                                                    className="btn btn-outline"
+                                                >
+                                                    Ask to Join
+                                                </button>
+                                            </>
+                                        )}
                                     </>
                                 )}
                             </>

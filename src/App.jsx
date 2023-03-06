@@ -1,8 +1,13 @@
 import React from "react";
+import FileShareProvider from "./context/FileShare";
 import MyRoutes from "./routes";
 
 const App = () => {
-    return <MyRoutes />;
+    return (
+        <FileShareProvider>
+            <MyRoutes />
+        </FileShareProvider>
+    );
 };
 
 export default App;

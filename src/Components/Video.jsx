@@ -17,16 +17,18 @@ const Video = ({
     hoverDisable,
     muted,
 }) => {
-    let isVideo = videoStream
-        ?.getTracks()
-        .findIndex((track) => track.kind === "video");
-    let isAudio = videoStream?.getTracks().findIndex((track) => {
-        if (track.kind === "audio" && track.enabled) {
-            return true;
-        } else {
-            return false;
-        }
-    });
+    let isVideo =
+        videoStream &&
+        videoStream?.getTracks()?.findIndex((track) => track.kind === "video");
+    let isAudio =
+        videoStream &&
+        videoStream?.getTracks()?.findIndex((track) => {
+            if (track.kind === "audio" && track.enabled) {
+                return true;
+            } else {
+                return false;
+            }
+        });
 
     return (
         <div
@@ -79,7 +81,7 @@ const Video = ({
                 muted={muted}
                 className={
                     isVideo !== -1
-                        ? "w-full h-full object-cover object-center"
+                        ? "w-full h-full object-fill object-center"
                         : "w-full h-full object-cover object-center hidden invisible"
                 }
             ></video>

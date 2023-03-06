@@ -1,6 +1,4 @@
 class WebRtc {
-    mySocketId = null;
-    remoteSocketId = null;
     chanel = undefined;
 
     constructor() {
@@ -13,11 +11,6 @@ class WebRtc {
         });
         this.chanel = this.peer.createDataChannel(`chat-${Date.now()}}`);
     }
-
-    init = (remoteSocketId, mySocketId) => {
-        this.remoteSocketId = remoteSocketId;
-        this.mySocketId = mySocketId;
-    };
 
     createOffer = async () => {
         const offer = await this.peer.createOffer();
