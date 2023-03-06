@@ -339,6 +339,12 @@ const MeetingPage = () => {
     };
 
     const shareScreenStream = async () => {
+        if (!incomingUserRequest.name) {
+            alert(
+                "You can not share screen until other user has joined the neeting."
+            );
+            return;
+        }
         let me = myName || userData?.data?.name;
         let streams = await navigator.mediaDevices.getDisplayMedia({
             video: true,
@@ -352,6 +358,8 @@ const MeetingPage = () => {
         myScreenStreamRef.current.srcObject = streams;
         const streamTrack = streams.getTracks()[0];
         peer.peer.addTrack(streamTrack, streams);
+        setPinndedVideo(streams);
+        pinnedVideoRef.current.srcObject = streams;
     };
 
     const stopScreenShare = () => {
@@ -397,8 +405,10 @@ const MeetingPage = () => {
                         !incomingUserRequest.name &&
                         !remoteScreenStream.stream
                     ) {
-                        pinnedVideoRef.current.srcObject = localVideoStream;
-                        setPinndedVideo(localVideoStream);
+                        if (!remoteStream) {
+                            pinnedVideoRef.current.srcObject = localVideoStream;
+                            setPinndedVideo(localVideoStream);
+                        }
                     }
                 }
             });
@@ -476,10 +486,19 @@ const MeetingPage = () => {
             className="h-[90vh] overflow-y-hidden"
             onClick={() => setShowChat(false)}
         >
-            {remoteScreenStream.stream && (
-                <div className="w-[200px] absolute top-8 left-8">
-                    <p className="font-semibold bg-base-300 p-2 capitalize">
-                        {incomingUserRequest.name} is Presenting
+            {(remoteScreenStream.stream || myScreenStream) && (
+                <div className="w-[400px] absolute top-8 left-8">
+                    <p className="font-semibold bg-base-300 px-2 py-1 capitalize rounded-lg">
+                        {myScreenStream && (
+                            <span>
+                                You are Presenting to {incomingUserRequest.name}
+                            </span>
+                        )}
+                        {remoteScreenStream.stream && (
+                            <span>
+                                {incomingUserRequest?.name} is Presenting...
+                            </span>
+                        )}
                     </p>
                 </div>
             )}
@@ -595,7 +614,7 @@ const MeetingPage = () => {
                     </div>
                 </div>
 
-                <div className="h-[95vh] overflow-y-auto mr-4 ml-8">
+                <div className="h-[95vh] pb-[80px] overflow-y-auto mr-4 ml-8">
                     {/* {local video stream} */}
                     <div className="w-[370px] h-[260px] mb-4">
                         <Video

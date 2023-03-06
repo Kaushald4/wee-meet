@@ -182,12 +182,12 @@ const JoinPage = () => {
                                 ) : (
                                     <>
                                         {isRequestingToJoin ? (
-                                            <div className="text-center">
+                                            <div className="text-center flex flex-col items-center max-w-[200px]">
                                                 <p>
                                                     You will be able to join in
                                                     when someone lets you in.
-                                                    <progress className="progress progress-primary w-56"></progress>
                                                 </p>
+                                                <progress className="progress progress-primary w-56"></progress>
                                             </div>
                                         ) : (
                                             <>
