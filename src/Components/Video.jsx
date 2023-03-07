@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
     BsPinAngleFill,
     BsPinAngle,
@@ -6,6 +6,7 @@ import {
     BsCameraVideoOff,
 } from "react-icons/bs";
 import { TbMicrophone, TbMicrophoneOff } from "react-icons/tb";
+import { BsFullscreen, BsFullscreenExit } from "react-icons/bs";
 
 const Video = ({
     videoRef,
@@ -16,7 +17,36 @@ const Video = ({
     username,
     hoverDisable,
     muted,
+    pinned,
 }) => {
+    const [isFullScreen, setIsFullScreen] = useState(false);
+
+    const openFullscreen = () => {
+        if (videoRef.current.requestFullscreen) {
+            videoRef.current.requestFullscreen({ navigationUI: "hide" });
+        } else if (videoRef.current.webkitRequestFullscreen) {
+            /* Safari */
+            videoRef.current.webkitRequestFullscreen({ navigationUI: "hide" });
+        } else if (videoRef.current.msRequestFullscreen) {
+            /* IE11 */
+            videoRef.current.msRequestFullscreen({ navigationUI: "hide" });
+        }
+        setIsFullScreen(true);
+    };
+
+    const closeFullscreen = () => {
+        if (videoRef.current.exitFullscreen) {
+            videoRef.current.exitFullscreen();
+        } else if (videoRef.current.webkitExitFullscreen) {
+            /* Safari */
+            videoRef.current.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) {
+            /* IE11 */
+            videoRef.current.msExitFullscreen();
+        }
+        setIsFullScreen(false);
+    };
+
     let isVideo =
         videoStream &&
         videoStream?.getTracks()?.findIndex((track) => track.kind === "video");
@@ -79,12 +109,28 @@ const Video = ({
                 playsInline
                 autoPlay
                 muted={muted}
+                controls={false}
                 className={
                     isVideo !== -1
                         ? "w-full h-full object-fill object-center"
                         : "w-full h-full object-cover object-center hidden invisible"
                 }
             ></video>
+            {pinned && (
+                <div className="absolute bottom-10 right-8">
+                    {!isFullScreen ? (
+                        <BsFullscreen
+                            className="z-50 cursor-pointer"
+                            onClick={openFullscreen}
+                        />
+                    ) : (
+                        <BsFullscreenExit
+                            className="z-50 cursor-pointer"
+                            onClick={closeFullscreen}
+                        />
+                    )}
+                </div>
+            )}
             {isVideo === -1 && (
                 <div className="avatar placeholder">
                     <div className="bg-neutral-focus text-neutral-content rounded-full w-24">

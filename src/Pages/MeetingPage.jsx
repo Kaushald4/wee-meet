@@ -623,6 +623,7 @@ const MeetingPage = () => {
                             videoRef={pinnedVideoRef}
                             videoStream={pinnedVideo}
                             hoverDisable
+                            pinned
                             username={incomingUserRequest.name || "You"}
                             muted
                         />
