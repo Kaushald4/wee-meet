@@ -57,6 +57,8 @@ const MeetingPage = () => {
         setRecievedFileProgress,
         recievedFile,
         recivedChunk,
+        isReceivingFile,
+        setIsReceivingFile,
     } = useFileShare();
 
     const sendersRef = useRef([]);
@@ -207,6 +209,8 @@ const MeetingPage = () => {
             }
 
             if (messageData?.done) {
+                setIsReceivingFile(false);
+                setRecievedFileProgress(0);
                 return;
             }
 
@@ -221,6 +225,9 @@ const MeetingPage = () => {
                     (recivedChunk.current / recievedFile.binaryData.size) * 100
                 );
                 setRecievedFileProgress(progress);
+            }
+            if (!isReceivingFile) {
+                setIsReceivingFile(true);
             }
             recievedFileChunkRef.current.push(ev.data);
         }

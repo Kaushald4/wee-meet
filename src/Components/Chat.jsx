@@ -29,6 +29,8 @@ const Chat = ({
         fileSentProgress,
         setRecievedFileProgress,
         recievedFileProgress,
+        isReceivingFile,
+        setIsReceivingFile,
         downloadFile,
     } = useFileShare();
 
@@ -86,20 +88,17 @@ const Chat = ({
                                     />
                                 </div>
                             )}
-                            {recievedFileProgress <= 99 && (
-                                <>
-                                    <p>
-                                        Recieving File... {recievedFileProgress}
-                                        %{" "}
-                                    </p>
-                                    <progress
-                                        className="progress progress-primary w-full mt-0 pt-0"
-                                        value={recievedFileProgress}
-                                        max="100"
-                                    ></progress>
-                                </>
-                            )}
                         </div>
+                    )}
+                    {isReceivingFile && (
+                        <>
+                            <p>Recieving File... {recievedFileProgress}% </p>
+                            <progress
+                                className="progress progress-primary w-full mt-0 pt-0"
+                                value={recievedFileProgress}
+                                max="100"
+                            ></progress>
+                        </>
                     )}
                 </>
             )}
@@ -173,7 +172,7 @@ const Chat = ({
                                     ) {
                                         downloadFile();
                                     }
-                                    if (recievedFileProgress >= 100) {
+                                    if (!isReceivingFile) {
                                         downloadFile();
                                     }
                                 }}
@@ -321,6 +320,7 @@ const Chat = ({
                                 type="file"
                                 id="file-share"
                                 hidden
+                                disabled={isReceivingFile}
                                 onChange={onSelectFile}
                                 ref={messageBoxRef}
                             />
@@ -328,7 +328,13 @@ const Chat = ({
                                 htmlFor="file-share"
                                 className="cursor-pointer"
                             >
-                                <ImAttachment className="text-2xl" />
+                                <ImAttachment
+                                    className={
+                                        isReceivingFile
+                                            ? "text-[rgba(0,0,0,.6)] text-2xl"
+                                            : "text-2xl"
+                                    }
+                                />
                             </label>
                         </div>
                     </div>

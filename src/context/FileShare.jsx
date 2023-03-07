@@ -36,6 +36,7 @@ const FileShareProvider = ({ children }) => {
     const [recievedFile, setRecievedFile] = useState(null);
     const [fileSentProgress, setFileSentProgress] = useState(0);
     const [recievedFileProgress, setRecievedFileProgress] = useState(0);
+    const [isReceivingFile, setIsReceivingFile] = useState(false);
 
     const onSelectFile = async (e) => {
         const file = e.target.files[0];
@@ -91,6 +92,7 @@ const FileShareProvider = ({ children }) => {
                 peer.chanel.send(chunk);
                 readFile(null, chunk);
             }
+            peer.chanel.send(JSON.stringify({ done: true }));
         };
         send();
 
@@ -152,6 +154,8 @@ const FileShareProvider = ({ children }) => {
                 recievedFileProgress,
                 downloadFile,
                 recivedChunk,
+                isReceivingFile,
+                setIsReceivingFile,
             }}
         >
             {children}
