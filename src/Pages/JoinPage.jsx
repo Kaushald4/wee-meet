@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { TbMicrophone, TbMicrophoneOff } from "react-icons/tb";
 import { BsCameraVideo, BsCameraVideoOff } from "react-icons/bs";
 import useVideo from "../app/useVideo";
@@ -21,6 +21,7 @@ const JoinPage = () => {
     const { socket } = useSocket();
     const params = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
 
     const { meetingCode } = params;
 
@@ -44,6 +45,9 @@ const JoinPage = () => {
     }, []);
 
     const handleJoinNow = () => {
+        if (!socket.connected) {
+            socket.connect();
+        }
         socket.emit("join:meeting", {
             name: userData?.data?.name,
             meetingCode,
@@ -52,6 +56,9 @@ const JoinPage = () => {
     const handleRequestToJoin = () => {
         const myName = name || userData?.data?.name;
         const toName = meetingInfo?.data?.author?.name;
+        if (!socket.connected) {
+            socket.connect();
+        }
         if (myName) {
             setIsRequestingToJoin(true);
             socket.emit("join:request", {

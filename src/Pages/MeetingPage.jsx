@@ -1,11 +1,18 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Navigate, useLocation, useParams } from "react-router-dom";
+import {
+    Navigate,
+    useLocation,
+    useNavigate,
+    useParams,
+} from "react-router-dom";
 import { TbMicrophone, TbMicrophoneOff } from "react-icons/tb";
 import { BsCameraVideo, BsCameraVideoOff } from "react-icons/bs";
-import { FaExchangeAlt } from "react-icons/fa";
+import { HiClipboardDocument } from "react-icons/hi2";
 import { FiMonitor } from "react-icons/fi";
 import { MdStopScreenShare } from "react-icons/md";
 import { AiOutlineMessage } from "react-icons/ai";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import useVideo from "../app/useVideo";
 import { useSocket } from "../context/socket";
 import ChatAudio from "../assets/msg.mp3";
@@ -34,6 +41,7 @@ const MeetingPage = () => {
     const [mymessage, setMymessage] = useState("");
     const [showChat, setShowChat] = useState(false);
     const [messages, setMessages] = useState([]);
+    const [meetingLinkCopied, setMeetingLinkCopied] = useState(false);
 
     const chatAudioRef = useRef(new Audio(ChatAudio));
 
@@ -66,6 +74,7 @@ const MeetingPage = () => {
     const myScreenStreamRef = useRef(null);
     const remoteVideoRef = useRef(null);
     const remoteScreenRef = useRef(null);
+    const navigate = useNavigate();
 
     const { data: userData } = useGetLoggedInUserQuery();
 
@@ -76,8 +85,13 @@ const MeetingPage = () => {
     };
     const handleRejectCall = () => {
         const { name, socketId } = incomingUserRequest;
-        setIncomingUserRequest({ ...incomingUserRequest, show: false });
         socket.emit("join:request:reject", { name, socketId });
+        setIncomingUserRequest({
+            ...incomingUserRequest,
+            show: false,
+            name: "",
+            socketId: "",
+        });
     };
 
     useEffect(() => {
@@ -91,11 +105,25 @@ const MeetingPage = () => {
 
         setVideoConstraint(location.state?.videoConstraint);
     }, []);
+    useEffect(() => {
+        let intervalId;
+        if (meetingLinkCopied) {
+            intervalId = setTimeout(() => {
+                setMeetingLinkCopied(false);
+            }, 2000);
+        }
+
+        return () => {
+            clearTimeout(intervalId);
+        };
+    }, [meetingLinkCopied]);
 
     // socket listeners
     const handleIncomingJoinRequest = (data) => {
         const { name, socketId } = data;
-        setIncomingUserRequest({ name, socketId, show: true });
+        if (!incomingUserRequest.name) {
+            setIncomingUserRequest({ name, socketId, show: true });
+        }
     };
     const handleNewUserJoined = async (data) => {
         const { name } = data;
@@ -106,6 +134,8 @@ const MeetingPage = () => {
 
         const offer = await peer.createOffer();
         socket.emit("call-offer", { toUser: name, fromUser: me, offer });
+
+        toast(`${name} Joined the Meeting...`);
     };
 
     const handleIncomingOffer = async (data) => {
@@ -149,6 +179,7 @@ const MeetingPage = () => {
         setPinndedVideo(null);
         setRemoteScreenStream({ id: "", stream: "" });
         setRemoteStream(null);
+        toast(`${data.name} Left the meeting...`);
     };
     useEffect(() => {
         socket.on("incoming:join:request", handleIncomingJoinRequest);
@@ -162,6 +193,11 @@ const MeetingPage = () => {
         socket.on("icecandidate", handleIceCandidate);
 
         socket.on("user-disconnect", handleUserDisconnected);
+
+        if (!incomingUserRequest.name) {
+            setPinndedVideo(localVideoStream);
+            localVideoRef.current.srcObject = localVideoStream;
+        }
 
         return () => {
             socket.off("incoming:join:request", handleIncomingJoinRequest);
@@ -348,7 +384,7 @@ const MeetingPage = () => {
     const shareScreenStream = async () => {
         if (!incomingUserRequest.name) {
             alert(
-                "You can not share screen until other user has joined the neeting."
+                "You can not share screen until other user has joined the meeting."
             );
             return;
         }
@@ -381,11 +417,20 @@ const MeetingPage = () => {
     };
 
     useEffect(() => {
-        shareMyVideoStream();
+        if (!socket.connected) {
+            // navigate(`/we/${meetingCode}`);
+        }
+    }, [socket.connected]);
+
+    useEffect(() => {
+        if (location.state?.videoConstraint) {
+            shareMyVideoStream();
+        }
 
         return () => {
             socket.disconnect();
-            peer.peer.close();
+
+            // peer.peer.close();
         };
     }, []);
 
@@ -509,6 +554,19 @@ const MeetingPage = () => {
                     </p>
                 </div>
             )}
+            {/* {Notification} */}
+            <ToastContainer
+                position="bottom-left"
+                autoClose={5000}
+                hideProgressBar
+                newestOnTop={false}
+                closeOnClick
+                rtl={false}
+                pauseOnFocusLoss
+                draggable
+                pauseOnHover={false}
+                theme="dark"
+            />
 
             <div className="ml-auto w-[150px] pb-5 pt-2 flex justify-center items-center gap-2">
                 <p className="capitalize">{myName || userData?.data?.name}</p>
@@ -570,6 +628,38 @@ const MeetingPage = () => {
                         />
                     </div>
 
+                    <div className="absolute bottom-8 ml-[80px]">
+                        <div className="flex justify-start">
+                            <span>
+                                Meeting Link |{" "}
+                                <span className="font-semibold ml-1 inline-flex items-center gap-2">
+                                    {meetingCode}
+                                    <div
+                                        onClick={() => {
+                                            setMeetingLinkCopied(true);
+                                            navigator.clipboard.writeText(
+                                                `${window.location.protocol}//${window.location.host}/we/${meetingCode}`
+                                            );
+                                        }}
+                                        className={
+                                            meetingLinkCopied
+                                                ? "tooltip cursor-pointer z-50"
+                                                : "cursor-pointer z-50"
+                                        }
+                                        data-tip="Copied"
+                                    >
+                                        <HiClipboardDocument
+                                            className={
+                                                meetingLinkCopied
+                                                    ? `text-1xl cursor-pointer text-success`
+                                                    : `text-1xl cursor-pointer `
+                                            }
+                                        />
+                                    </div>
+                                </span>
+                            </span>
+                        </div>
+                    </div>
                     <div className="absolute bottom-5 gap-5 w-full flex justify-center">
                         {videoConstraint.audio ? (
                             <button
