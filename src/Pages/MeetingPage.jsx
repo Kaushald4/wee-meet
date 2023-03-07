@@ -418,7 +418,7 @@ const MeetingPage = () => {
 
     useEffect(() => {
         if (!socket.connected) {
-            // navigate(`/we/${meetingCode}`);
+            navigate(`/we/${meetingCode}`);
         }
     }, [socket.connected]);
 
