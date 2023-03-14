@@ -6,3 +6,7 @@
 ::-webkit-media-controls {
     display:none !important;
   }
+
+  body {
+    overflow-x: hidden;
+  }

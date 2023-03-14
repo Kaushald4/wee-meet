@@ -2,7 +2,11 @@
 module.exports = {
     content: ["./src/**/*.{js,jsx,ts,tsx}"],
     theme: {
-        extend: {},
+        extend: {
+            screens: {
+                1499: "1449px",
+            },
+        },
     },
     daisyui: {
         styled: true,

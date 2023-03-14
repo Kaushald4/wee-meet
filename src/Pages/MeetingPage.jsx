@@ -7,10 +7,11 @@ import {
 } from "react-router-dom";
 import { TbMicrophone, TbMicrophoneOff } from "react-icons/tb";
 import { BsCameraVideo, BsCameraVideoOff } from "react-icons/bs";
-import { HiClipboardDocument } from "react-icons/hi2";
+import { HiClipboardDocument, HiOutlinePencilSquare } from "react-icons/hi2";
 import { FiMonitor } from "react-icons/fi";
 import { MdStopScreenShare } from "react-icons/md";
-import { AiOutlineMessage } from "react-icons/ai";
+import { AiOutlineMessage, AiOutlineCloseCircle } from "react-icons/ai";
+import { GrCode } from "react-icons/gr";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import useVideo from "../app/useVideo";
@@ -21,6 +22,10 @@ import peer from "../app/webRtc";
 import Chat from "../Components/Chat";
 import Video from "../Components/Video";
 import { useFileShare } from "../context/FileShare";
+import { useWhiteBoard } from "../context/WhiteBoard";
+import { useCodeShare } from "../context/CodeShare";
+import WhiteBoard from "../Components/WhiteBoard";
+import CodeShare from "../Components/CodeShare";
 
 const MeetingPage = () => {
     const [incomingUserRequest, setIncomingUserRequest] = useState({
@@ -42,6 +47,9 @@ const MeetingPage = () => {
     const [showChat, setShowChat] = useState(false);
     const [messages, setMessages] = useState([]);
     const [meetingLinkCopied, setMeetingLinkCopied] = useState(false);
+
+    const [showWhiteBoard, setShowWhiteboard] = useState(false);
+    const [showCodeShare, setShowCodeShare] = useState(false);
 
     const chatAudioRef = useRef(new Audio(ChatAudio));
 
@@ -68,6 +76,20 @@ const MeetingPage = () => {
         isReceivingFile,
         setIsReceivingFile,
     } = useFileShare();
+
+    const {
+        whiteBoardId,
+        generateWhiteId,
+        setremoteWhiteBoardId,
+        remoteWhiteBoardId,
+    } = useWhiteBoard();
+
+    const {
+        codeShareId,
+        generateCodeShareId,
+        setremoteCodeShareId,
+        remoteCodeShareId,
+    } = useCodeShare();
 
     const sendersRef = useRef([]);
     const pinnedVideoRef = useRef();
@@ -196,7 +218,9 @@ const MeetingPage = () => {
 
         if (!incomingUserRequest.name) {
             setPinndedVideo(localVideoStream);
-            localVideoRef.current.srcObject = localVideoStream;
+            if (localVideoRef.current) {
+                localVideoRef.current.srcObject = localVideoStream;
+            }
         }
 
         return () => {
@@ -233,6 +257,24 @@ const MeetingPage = () => {
                     ...remoteScreenStream,
                     id: messageData.id,
                 });
+                return;
+            }
+
+            //white board
+            if (messageData?.type === "whiteboard") {
+                setremoteWhiteBoardId(messageData.id);
+                setShowWhiteboard(true);
+                setPinndedVideo(null);
+                pinnedVideoRef.current.srcObject = null;
+                return;
+            }
+
+            //Codeshare board
+            if (messageData?.type === "codeshare") {
+                setremoteCodeShareId(messageData.id);
+                setShowCodeShare(true);
+                setPinndedVideo(null);
+                pinnedVideoRef.current.srcObject = null;
                 return;
             }
 
@@ -418,7 +460,7 @@ const MeetingPage = () => {
 
     useEffect(() => {
         if (!socket.connected) {
-            navigate(`/we/${meetingCode}`);
+            // navigate(`/we/${meetingCode}`);
         }
     }, [socket.connected]);
 
@@ -429,8 +471,6 @@ const MeetingPage = () => {
 
         return () => {
             socket.disconnect();
-
-            // peer.peer.close();
         };
     }, []);
 
@@ -606,14 +646,14 @@ const MeetingPage = () => {
                     </div>
                 </div>
             )}
-            <div className="flex justify-between">
+            <div className="flex justify-between mx-4">
                 {/* pinned video */}
-                <div className="w-[80vw]">
+                <div className="w-[78vw]">
                     <div
                         className={
                             pinnedVideo
-                                ? "w-full mx-auto overflow-hidden rounded-lg h-[84vh] ml-4"
-                                : "w-full mx-auto overflow-hidden rounded-lg h-[84vh] hidden invisible"
+                                ? "w-full mx-auto overflow-hidden rounded-lg h-[84vh] hidden lg:block"
+                                : "w-full mx-auto overflow-hidden rounded-lg h-[84vh] hidden invisible lg:hidden lg:invisible"
                         }
                     >
                         <Video
@@ -709,12 +749,82 @@ const MeetingPage = () => {
                                 <MdStopScreenShare className="text-2xl text-white" />
                             </button>
                         )}
+
+                        {!showWhiteBoard ? (
+                            <button
+                                onClick={() => {
+                                    setShowWhiteboard(true);
+                                    generateWhiteId((id) => {
+                                        setPinndedVideo(null);
+                                        if (incomingUserRequest.name) {
+                                            peer.chanel.send(
+                                                JSON.stringify({
+                                                    type: "whiteboard",
+                                                    id: id,
+                                                })
+                                            );
+                                        }
+                                        pinnedVideoRef.current.srcObject = null;
+                                    });
+                                }}
+                                className="bg-[rgba(255,255,255,.2)] hover:bg-primary-focus w-[50px] h-[50px] rounded-full flex justify-center items-center"
+                            >
+                                <HiOutlinePencilSquare className="text-2xl text-white" />
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => setShowWhiteboard(false)}
+                                className="bg-primary hover:bg-primary-focus w-[50px] h-[50px] rounded-full flex justify-center items-center"
+                            >
+                                <AiOutlineCloseCircle className="text-2xl text-white" />
+                            </button>
+                        )}
+
+                        {/* {code share icon} */}
+                        {!showCodeShare ? (
+                            <button
+                                onClick={() => {
+                                    setShowCodeShare(true);
+                                    generateCodeShareId((id) => {
+                                        setPinndedVideo(null);
+                                        if (incomingUserRequest.name) {
+                                            peer.chanel.send(
+                                                JSON.stringify({
+                                                    type: "codeshare",
+                                                    id: id,
+                                                })
+                                            );
+                                        }
+                                        pinnedVideoRef.current.srcObject = null;
+                                    });
+                                }}
+                                className="bg-[rgba(255,255,255,.2)] hover:bg-primary-focus w-[50px] h-[50px] rounded-full flex justify-center items-center"
+                            >
+                                <GrCode className="text-2xl text-white" />
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => setShowCodeShare(false)}
+                                className="bg-primary hover:bg-primary-focus w-[50px] h-[50px] rounded-full flex justify-center items-center"
+                            >
+                                <AiOutlineCloseCircle className="text-2xl text-white" />
+                            </button>
+                        )}
                     </div>
+                    {/* {whiteboard} */}
+                    {showWhiteBoard && (
+                        <WhiteBoard id={whiteBoardId || remoteWhiteBoardId} />
+                    )}
+                    {/* {Code Share} */}
+                    {showCodeShare && (
+                        <CodeShare id={codeShareId || remoteCodeShareId} />
+                    )}
                 </div>
 
-                <div className="h-[95vh] pb-[80px] overflow-y-auto mr-4 ml-8">
+                <div className="h-[95vh] w-[370px]  pb-[80px] overflow-y-auto">
                     {/* {local video stream} */}
-                    <div className="w-[370px] h-[260px] mb-4">
+
+                    <div className="w-full h-[260px] mb-4">
                         <Video
                             pinnedVideo={pinnedVideo}
                             setPinndedVideo={setPinndedVideo}

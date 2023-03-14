@@ -18,6 +18,10 @@ const HomePage = () => {
 
     const handleCreateMeeting = () => {
         if (!data) {
+            let ans = alert(
+                "Please Login To create new Meeting Link. In the mean time if you have meeting code then you can join the meeting with meeting code"
+            );
+            console.log(ans);
             return;
         }
         createMeeting()

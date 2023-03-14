@@ -117,7 +117,7 @@ const Video = ({
                 }
             ></video>
             {pinned && (
-                <div className="absolute bottom-10 right-8">
+                <div className="absolute bottom-10 right-5">
                     {!isFullScreen ? (
                         <BsFullscreen
                             className="z-50 cursor-pointer"
